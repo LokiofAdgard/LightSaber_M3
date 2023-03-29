@@ -10,7 +10,7 @@
 
 
 namespace LG{   // LIGHTS=====================================================================================================
-  const char LED_PIN = 13;
+  const char LED_PIN = 7;
   const char NUM_LEDS = 60;
 
   CRGB leds[NUM_LEDS];
@@ -99,23 +99,23 @@ namespace GY{   //GYROSCPOE=====================================================
 
 
 
-namespace ACT{   //ACTIONS=====================================================================================================
+namespace FN{   //FUNCTIONS=====================================================================================================
   const char ign_pin = 13;
   const char hit_leave = 10;
   bool ON = false;
-  
+
 
   void ignite(){
     ON = true;
     SN::player.volume(25);
     SN::player.play(3);
-    delay(800);
+    //delay(800);
     for(int i = 0;i<LG::NUM_LEDS;i++){
       LG::leds[i] = CRGB(255, 0, 0);
       FastLED.show();
       delay(10); 
     }
-    delay(400);
+    delay(800);
     SN::player.loop(2);
   }
 
@@ -124,7 +124,7 @@ namespace ACT{   //ACTIONS======================================================
     SN::player.volume(25);
     SN::player.disableLoop();
     SN::player.play(1);
-    delay(800);
+    delay(600);
     for(int i = LG::NUM_LEDS;i>=0;i--){
       LG::leds[i] = CRGB(0, 0, 0);
       FastLED.show();
@@ -174,19 +174,26 @@ namespace ACT{   //ACTIONS======================================================
       delay(600);
       SN::player.loop(2);
     }
-    else ACT::hit();
+    else FN::hit();
   }
 }
 
 
 
 void setup() {
-  pinMode(LG::LED_PIN, OUTPUT);
+  Serial.begin(9600);
+  pinMode(FN::ign_pin,INPUT);
+
+  GY::init_gyro();
+  LG::init_lights();
+  SN::init_sounds(); 
 }
 
 void loop() {
-  digitalWrite(LG::LED_PIN, HIGH);
-  delay(1000);
-  digitalWrite(LG::LED_PIN, LOW);
-  delay(1000);
+  if((digitalRead(FN::ign_pin)==HIGH)&&(FN::ON==false)) FN::ignite();
+  else if((digitalRead(FN::ign_pin)!=HIGH)&&(FN::ON==true)) FN::retract();
+  else if((digitalRead(FN::ign_pin)==HIGH)&&(FN::ON==true)){
+    FN::swingState();
+    delay(100);
+  }
 }
