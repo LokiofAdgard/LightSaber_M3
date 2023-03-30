@@ -5,6 +5,7 @@
 #include <Wire.h>
 #include <SoftwareSerial.h>
 #include <DFRobotDFPlayerMini.h>
+#include <EEPROM.h>
 
 
 
@@ -13,6 +14,9 @@ namespace LG{   // LIGHTS=======================================================
   const char LED_PIN = 7;
   const char NUM_LEDS = 60;
   char color = 0;
+  char nColors = 3;
+  char ign_delay = 10;
+  char ret_delay = 10;
 
   CRGB leds[NUM_LEDS];
 
@@ -117,6 +121,30 @@ namespace GY{   //GYROSCPOE=====================================================
 
 
 
+namespace ST{   //STORAGE============================================================================
+  char addr = 0;
+
+
+  char init_color(){
+    if(EEPROM.read(addr)<LG::nColors){
+      Serial.println("Color Initialized");
+      return (EEPROM.read(addr));
+    } else {
+      Serial.println("Color init Failed");
+      return 0;
+    }
+  }
+
+  void save_color(){
+    EEPROM.write(addr, LG::color);
+  }
+}
+
+
+
+
+
+
 namespace FN{   //FUNCTIONS=====================================================================================================
   const char ign_pin = 13;
   const char mode_pin = 12;
@@ -133,6 +161,7 @@ namespace FN{   //FUNCTIONS=====================================================
   }
 
   void ignite(){
+    Serial.println("Ignite");
     ON = true;
     SN::player.volume(25);
     SN::player.play(3);
@@ -140,13 +169,14 @@ namespace FN{   //FUNCTIONS=====================================================
     for(int i = 0;i<LG::NUM_LEDS;i++){
       LG::set_color(LG::color,i);
       FastLED.show();
-      delay(10); 
+      delay(LG::ign_delay); 
     }
     delay(800);
     SN::player.loop(2);
   }
 
   void retract(){
+    Serial.println("Retract");
     ON = false;
     SN::player.volume(25);
     SN::player.disableLoop();
@@ -155,7 +185,7 @@ namespace FN{   //FUNCTIONS=====================================================
     for(int i = LG::NUM_LEDS;i>=0;i--){
       LG::leds[i] = CRGB(0, 0, 0);
       FastLED.show();
-      delay(10); 
+      delay(LG::ret_delay); 
     }
   }
 
@@ -203,7 +233,7 @@ namespace FN{   //FUNCTIONS=====================================================
     else FN::hit();
   }
 
-  char mode_switch(){
+  char mode_button(){
     if (digitalRead(mode_pin) == HIGH){
       Serial.println("Mode Button Pressed");
       press_time = millis();
@@ -211,23 +241,38 @@ namespace FN{   //FUNCTIONS=====================================================
       press_time = millis() - press_time;
       Serial.println(press_time);
 
-      if (press_time<1000) return 1;
-      else if(press_time<3000) return 2;
+      if (press_time<500) return 1;
+      else if(press_time<2000) return 2;
+      else if(press_time<5000) return 3;
       else return 0;  
     }
     return 0;
   }
+
+  void default_settings(){
+    Serial.println("Default Settings");
+    LG::color = 0;
+    ST::save_color();
+  }
 }
+
+
+
+
 
 
 
 void setup() {
   Serial.begin(9600);
 
+  Serial.println();
+  Serial.println("=================================================");
+
   LG::init_lights();
   SN::init_sounds(); 
   GY::init_gyro();
   FN::init_fn();
+  LG::color = ST::init_color();
 }
 
 void loop() {
@@ -246,8 +291,26 @@ void loop() {
     }
   }
   else{
-    if(FN::ON==true) FN::retract();   
-    if(FN::mode_switch() == 1) LG::color++; if(LG::color == 3) LG::color = 0;
+    if(FN::ON==true){
+      FN::retract();
+      ST::save_color();
+    }
+
+    switch (FN::mode_button()){
+    case 1:
+      LG::color++;
+      if(LG::color == LG::nColors) LG::color = 0;
+      break;
+    case 2:
+      //Change Profile
+      break;
+    case 3:
+      FN::default_settings();
+      break;
+    default:
+      break;
+    }
+
+    delay(10);
   }
-  delay(10);
 }
