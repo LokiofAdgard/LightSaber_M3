@@ -12,12 +12,31 @@
 namespace LG{   // LIGHTS=====================================================================================================
   const char LED_PIN = 7;
   const char NUM_LEDS = 60;
+  char color = 0;
 
   CRGB leds[NUM_LEDS];
 
 
   void init_lights(){
     FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
+    Serial.println("Lights Initialized");
+  }
+
+  void set_color(unsigned char c, unsigned char p){
+    switch (c)    {
+    case 0:
+      LG::leds[p] = CRGB(255, 0, 0);
+      break;
+    case 1:
+      LG::leds[p] = CRGB(0, 255, 0);
+      break;
+    case 2:
+      LG::leds[p] = CRGB(0, 0, 255);
+      break;
+
+    default:
+      break;
+    }
   }
 }
 
@@ -39,7 +58,7 @@ namespace SN{   //SOUNDS========================================================
   void init_sounds(){
     softwareSerial.begin(9600);
     if (player.begin(softwareSerial)) {
-    Serial.println("OK");
+    Serial.println("Sound Initialized");
 
       // Set volume to maximum (0 to 30).
       //player.volume(15);
@@ -47,7 +66,7 @@ namespace SN{   //SOUNDS========================================================
       //player.play(7);
       
     } else {
-      Serial.println("Connecting to DFPlayer Mini failed!");
+      Serial.println("Sound init Failed");
     }
   }
 }
@@ -70,18 +89,17 @@ namespace GY{   //GYROSCPOE=====================================================
     while (!Serial)
       delay(10); // will pause Zero, Leonardo, etc until serial console opens
 
-    Serial.println("Adafruit MPU6050 test!");
+    // Serial.println("Adafruit MPU6050 test!");
     if (!mpu.begin()) {
-      Serial.println("Failed to find MPU6050 chip");
+      Serial.println("Gyro init Failed");
       while (1) {
         delay(10);
       }
     }
-    Serial.println("MPU6050 Found!");
+    Serial.println("Gyro Initialized");
     mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
     mpu.setGyroRange(MPU6050_RANGE_500_DEG);
     mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-    Serial.println("");
     delay(100);
   }
 
@@ -101,9 +119,18 @@ namespace GY{   //GYROSCPOE=====================================================
 
 namespace FN{   //FUNCTIONS=====================================================================================================
   const char ign_pin = 13;
+  const char mode_pin = 12;
   const char hit_leave = 10;
   bool ON = false;
+  int v;
+  long press_time = 0;
 
+  
+  void init_fn(){
+    pinMode(ign_pin, INPUT);
+    pinMode(mode_pin, INPUT);
+    Serial.println("Controls Initialized");
+  }
 
   void ignite(){
     ON = true;
@@ -111,7 +138,7 @@ namespace FN{   //FUNCTIONS=====================================================
     SN::player.play(3);
     //delay(800);
     for(int i = 0;i<LG::NUM_LEDS;i++){
-      LG::leds[i] = CRGB(255, 0, 0);
+      LG::set_color(LG::color,i);
       FastLED.show();
       delay(10); 
     }
@@ -134,7 +161,7 @@ namespace FN{   //FUNCTIONS=====================================================
 
   void restore(){
     for(int i = 0;i<LG::NUM_LEDS;i++){
-      LG::leds[i] = CRGB(255, 0, 0);
+      LG::set_color(LG::color,i);
       FastLED.show();
     }
   }
@@ -158,15 +185,14 @@ namespace FN{   //FUNCTIONS=====================================================
   }
 
   void swingState(){
-    int v = GY::gyroRead();
+    v = GY::gyroRead();
     if(v<GY::low_s) {
       //set propotional vol (<30)
-      Serial.println("hum");
+      //Serial.println("hum");
       SN::player.volume((10*v/GY::low_s)+20);
     }
     else if(v<(GY::low_s + GY::med_s)){
-      //swing sound
-      Serial.println("swing");
+      Serial.println("Swing");
       SN::player.disableLoop();
       SN::player.volume(25);
       SN::player.play(5);
@@ -176,24 +202,52 @@ namespace FN{   //FUNCTIONS=====================================================
     }
     else FN::hit();
   }
+
+  char mode_switch(){
+    if (digitalRead(mode_pin) == HIGH){
+      Serial.println("Mode Button Pressed");
+      press_time = millis();
+      while (digitalRead(mode_pin) == HIGH);
+      press_time = millis() - press_time;
+      Serial.println(press_time);
+
+      if (press_time<1000) return 1;
+      else if(press_time<3000) return 2;
+      else return 0;  
+    }
+    return 0;
+  }
 }
 
 
 
 void setup() {
   Serial.begin(9600);
-  pinMode(FN::ign_pin,INPUT);
 
-  GY::init_gyro();
   LG::init_lights();
   SN::init_sounds(); 
+  GY::init_gyro();
+  FN::init_fn();
 }
 
 void loop() {
-  if((digitalRead(FN::ign_pin)==HIGH)&&(FN::ON==false)) FN::ignite();
-  else if((digitalRead(FN::ign_pin)!=HIGH)&&(FN::ON==true)) FN::retract();
-  else if((digitalRead(FN::ign_pin)==HIGH)&&(FN::ON==true)){
-    FN::swingState();
-    delay(100);
+  // if((digitalRead(FN::ign_pin)==HIGH)&&(FN::ON==false)) FN::ignite();
+  // else if((digitalRead(FN::ign_pin)!=HIGH)&&(FN::ON==true)) FN::retract();
+  // else if((digitalRead(FN::ign_pin)==HIGH)&&(FN::ON==true)){
+  //   FN::swingState();
+  //   delay(100);
+  // }
+
+  if(digitalRead(FN::ign_pin)==HIGH){
+    if(FN::ON==false) FN::ignite();
+    else{
+      FN::swingState();
+      delay(100);
+    }
   }
+  else{
+    if(FN::ON==true) FN::retract();   
+    if(FN::mode_switch() == 1) LG::color++; if(LG::color == 3) LG::color = 0;
+  }
+  delay(10);
 }
