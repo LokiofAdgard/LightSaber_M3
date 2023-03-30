@@ -10,13 +10,28 @@
 
 
 
+namespace PF{   // LIGHTS=====================================================================================================
+  const unsigned char nProfiles = 3;
+  unsigned char profile = 0;
+
+
+  void profile_increment(){
+    profile++;
+    if (profile == nProfiles) profile = 0;
+    Serial.println("Profile : " + String(profile));
+  }
+}
+
+
+
+
 namespace LG{   // LIGHTS=====================================================================================================
   const char LED_PIN = 7;
   const char NUM_LEDS = 60;
-  char color = 0;
+  unsigned char color = 0;
   char nColors = 3;
-  char ign_delay = 10;
-  char ret_delay = 10;
+  char ign_delay[] = {10, 5, 50};
+  char ret_delay[] = {10, 5, 50};
 
   CRGB leds[NUM_LEDS];
 
@@ -41,6 +56,12 @@ namespace LG{   // LIGHTS=======================================================
     default:
       break;
     }
+  }
+
+  void color_increment(){
+    color++;
+    if(color == nColors) color = 0;
+    Serial.println("Color : " + String(color));
   }
 }
 
@@ -122,21 +143,37 @@ namespace GY{   //GYROSCPOE=====================================================
 
 
 namespace ST{   //STORAGE============================================================================
-  char addr = 0;
+  const unsigned char color_addr = 0;
+  const unsigned char profile_addr = 1;
+  unsigned char temp;
 
 
   char init_color(){
-    if(EEPROM.read(addr)<LG::nColors){
-      Serial.println("Color Initialized");
-      return (EEPROM.read(addr));
+    if((temp =EEPROM.read(color_addr))<LG::nColors){
+      Serial.println("Color Initialized : " + String(temp));
+      return (temp);
     } else {
       Serial.println("Color init Failed");
       return 0;
     }
   }
 
+  char init_profile(){
+    if((temp = EEPROM.read(profile_addr))<PF::nProfiles){
+      Serial.println("Profile Initialized : " + String(temp));
+      return (temp);
+    } else {
+      Serial.println("Profile init Failed");
+      return 0;
+    }
+  }
+
   void save_color(){
-    EEPROM.write(addr, LG::color);
+    EEPROM.write(color_addr, LG::color);
+  }
+
+  void save_profile(){
+    EEPROM.write(profile_addr, PF::profile);
   }
 }
 
@@ -169,7 +206,7 @@ namespace FN{   //FUNCTIONS=====================================================
     for(int i = 0;i<LG::NUM_LEDS;i++){
       LG::set_color(LG::color,i);
       FastLED.show();
-      delay(LG::ign_delay); 
+      delay(LG::ign_delay[PF::profile]); 
     }
     delay(800);
     SN::player.loop(2);
@@ -185,7 +222,7 @@ namespace FN{   //FUNCTIONS=====================================================
     for(int i = LG::NUM_LEDS;i>=0;i--){
       LG::leds[i] = CRGB(0, 0, 0);
       FastLED.show();
-      delay(LG::ret_delay); 
+      delay(LG::ret_delay[PF::profile]); 
     }
   }
 
@@ -252,7 +289,9 @@ namespace FN{   //FUNCTIONS=====================================================
   void default_settings(){
     Serial.println("Default Settings");
     LG::color = 0;
+    PF::profile = 0;
     ST::save_color();
+    ST::save_profile();
   }
 }
 
@@ -273,6 +312,7 @@ void setup() {
   GY::init_gyro();
   FN::init_fn();
   LG::color = ST::init_color();
+  PF::profile = ST::init_profile();
 }
 
 void loop() {
@@ -294,15 +334,15 @@ void loop() {
     if(FN::ON==true){
       FN::retract();
       ST::save_color();
+      ST::save_profile();
     }
 
     switch (FN::mode_button()){
     case 1:
-      LG::color++;
-      if(LG::color == LG::nColors) LG::color = 0;
+      LG::color_increment();
       break;
     case 2:
-      //Change Profile
+      PF::profile_increment();
       break;
     case 3:
       FN::default_settings();
