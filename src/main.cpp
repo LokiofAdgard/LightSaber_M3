@@ -149,7 +149,7 @@ namespace ST{   //STORAGE=======================================================
 
 
   char init_color(){
-    if((temp =EEPROM.read(color_addr))<LG::nColors){
+    if((temp = EEPROM.read(color_addr))<LG::nColors){
       Serial.println("Color Initialized : " + String(temp));
       return (temp);
     } else {
@@ -169,14 +169,46 @@ namespace ST{   //STORAGE=======================================================
   }
 
   void save_color(){
-    EEPROM.write(color_addr, LG::color);
+    if(EEPROM.read(color_addr) != LG::color) EEPROM.write(color_addr, LG::color);
   }
 
   void save_profile(){
-    EEPROM.write(profile_addr, PF::profile);
+    if(EEPROM.read(profile_addr) != PF::profile) EEPROM.write(profile_addr, PF::profile);
   }
 }
 
+
+
+
+
+
+namespace BT{   //BATTERY=====================================================================================================
+  const char btry_pin = A0;
+  const char btry_cutoff = 32;   //3.2 V
+  const char btry_low = 34;      //3.4 V
+  const char btry_medium = 37;   //3.7 V
+  const char btry_good = 40;     //4.0 V
+
+  int temp;
+
+  unsigned char get_battery(){
+    temp = analogRead(btry_pin);
+    return (temp*5/102.3);
+  }
+
+  void init_battery(){
+    temp = get_battery();
+    if (temp <= btry_cutoff){
+      Serial.println("Battery Too Low");
+      // Add Sound
+      while (1) delay(10000);      
+    }
+    else if(temp <= btry_low) Serial.println("Battery : LOW");
+    else if(temp <= btry_medium) Serial.println("Battery : MEDIUM");
+    else if(temp <= btry_good) Serial.println("Battery : GOOD");
+    else Serial.println("Battery : FULL");
+  }
+}
 
 
 
@@ -188,7 +220,8 @@ namespace FN{   //FUNCTIONS=====================================================
   const char hit_leave = 10;
   bool ON = false;
   int v;
-  long press_time = 0;
+  unsigned long press_time = 0;
+  unsigned long last_retract = 0;
 
   
   void init_fn(){
@@ -224,6 +257,7 @@ namespace FN{   //FUNCTIONS=====================================================
       FastLED.show();
       delay(LG::ret_delay[PF::profile]); 
     }
+    last_retract = millis(); // for sleep
   }
 
   void restore(){
@@ -278,9 +312,10 @@ namespace FN{   //FUNCTIONS=====================================================
       press_time = millis() - press_time;
       Serial.println(press_time);
 
-      if (press_time<500) return 1;
+      if (press_time<300) return 1;
       else if(press_time<2000) return 2;
       else if(press_time<5000) return 3;
+      else if(press_time<8000) return 4;
       else return 0;  
     }
     return 0;
@@ -293,6 +328,29 @@ namespace FN{   //FUNCTIONS=====================================================
     ST::save_color();
     ST::save_profile();
   }
+
+  void battery_check(bool full){
+    v = BT::get_battery();
+    if (v <= BT::btry_cutoff){
+      Serial.println("Battery Too Low");
+      // Add Sound
+      if(FN::ON) FN::retract();
+      while (1) delay(10000);      
+    }
+    if(!full) return;
+
+    if(v <= BT::btry_low){ Serial.println("Battery : LOW"); /*Add Sound*/}
+    else if(v <= BT::btry_medium){ Serial.println("Battery : MEDIUM"); /*Add Sound*/}
+    else if(v <= BT::btry_good){ Serial.println("Battery : GOOD"); /*Add Sound*/}
+    else{ Serial.println("Battery : FULL"); /*Add Sound*/}
+  }
+
+  void sleeper(unsigned char m){ //minutes
+    if(millis()>(last_retract + 60000*m)){
+      Serial.println("Going to Sleep");
+      while (1) delay(1000000);      
+    }
+  }
 }
 
 
@@ -303,10 +361,9 @@ namespace FN{   //FUNCTIONS=====================================================
 
 void setup() {
   Serial.begin(9600);
-
-  Serial.println();
-  Serial.println("=================================================");
-
+  Serial.println("\n=================================================");
+  
+  BT::init_battery();
   LG::init_lights();
   SN::init_sounds(); 
   GY::init_gyro();
@@ -327,6 +384,7 @@ void loop() {
     if(FN::ON==false) FN::ignite();
     else{
       FN::swingState();
+      FN::battery_check(false);
       delay(100);
     }
   }
@@ -335,7 +393,7 @@ void loop() {
       FN::retract();
       ST::save_color();
       ST::save_profile();
-    }
+    } else FN::sleeper(10);
 
     switch (FN::mode_button()){
     case 1:
@@ -346,6 +404,9 @@ void loop() {
       break;
     case 3:
       FN::default_settings();
+      break;
+    case 4:
+      FN::battery_check(true);
       break;
     default:
       break;
