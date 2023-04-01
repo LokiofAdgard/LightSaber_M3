@@ -27,6 +27,7 @@ namespace PF{   // LIGHTS=======================================================
 
 namespace LG{   // LIGHTS=====================================================================================================
   const char LED_PIN = 7;
+  const char LED_PIN_BACKUP = 6;
   const char NUM_LEDS = 60;
   unsigned char color = 0;
   char nColors = 3;
@@ -184,6 +185,7 @@ namespace ST{   //STORAGE=======================================================
 
 namespace BT{   //BATTERY=====================================================================================================
   const char btry_pin = A0;
+  const char battery_pin_backup = A1;
   const char btry_cutoff = 32;   //3.2 V
   const char btry_low = 34;      //3.4 V
   const char btry_medium = 37;   //3.7 V
@@ -215,8 +217,8 @@ namespace BT{   //BATTERY=======================================================
 
 
 namespace FN{   //FUNCTIONS=====================================================================================================
-  const char ign_pin = 13;
-  const char mode_pin = 12;
+  const char ign_pin = 10;
+  const char mode_pin = 9;
   const char hit_leave = 10;
   bool ON = false;
   int v;
@@ -227,6 +229,15 @@ namespace FN{   //FUNCTIONS=====================================================
   void init_fn(){
     pinMode(ign_pin, INPUT);
     pinMode(mode_pin, INPUT);
+    pinMode(BT::btry_pin, INPUT);
+
+    //SET BACKUP PINS AS INPUTS
+    pinMode(LG::LED_PIN_BACKUP, INPUT);
+    pinMode(BT::battery_pin_backup, INPUT);
+
+    //SAFTEY
+    pinMode(0, INPUT);
+
     Serial.println("Controls Initialized");
   }
 
