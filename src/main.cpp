@@ -92,7 +92,7 @@ namespace SN{   //SOUNDS========================================================
       //player.play(7);
       
     } else {
-      Serial.println("Sound init Failed");
+      Serial.println("Sound init Failed------");
     }
   }
 }
@@ -112,12 +112,9 @@ namespace GY{   //GYROSCPOE=====================================================
 
 
   void init_gyro(){
-    while (!Serial)
-      delay(10); // will pause Zero, Leonardo, etc until serial console opens
-
-    // Serial.println("Adafruit MPU6050 test!");
+    while (!Serial) delay(10); // will pause Zero, Leonardo, etc until serial console opens
     if (!mpu.begin()) {
-      Serial.println("Gyro init Failed");
+      Serial.println("Gyro init Failed------");
       while (1) {
         delay(10);
       }
@@ -154,7 +151,7 @@ namespace ST{   //STORAGE=======================================================
       Serial.println("Color Initialized : " + String(temp));
       return (temp);
     } else {
-      Serial.println("Color init Failed");
+      Serial.println("Color init Failed------");
       return 0;
     }
   }
@@ -164,17 +161,19 @@ namespace ST{   //STORAGE=======================================================
       Serial.println("Profile Initialized : " + String(temp));
       return (temp);
     } else {
-      Serial.println("Profile init Failed");
+      Serial.println("Profile init Failed------");
       return 0;
     }
   }
 
   void save_color(){
-    if(EEPROM.read(color_addr) != LG::color) EEPROM.write(color_addr, LG::color);
+    // if(EEPROM.read(color_addr) != LG::color) EEPROM.write(color_addr, LG::color);
+    EEPROM.update(color_addr, LG::color);
   }
 
   void save_profile(){
-    if(EEPROM.read(profile_addr) != PF::profile) EEPROM.write(profile_addr, PF::profile);
+    // if(EEPROM.read(profile_addr) != PF::profile) EEPROM.write(profile_addr, PF::profile);
+    EEPROM.update(profile_addr, PF::profile);
   }
 }
 
@@ -220,6 +219,8 @@ namespace FN{   //FUNCTIONS=====================================================
   const char ign_pin = 10;
   const char mode_pin = 9;
   const char hit_leave = 10;
+  const char indicator1 = 13;
+  const char indicator2 = 12;
   bool ON = false;
   int v;
   unsigned long press_time = 0;
@@ -230,6 +231,8 @@ namespace FN{   //FUNCTIONS=====================================================
     pinMode(ign_pin, INPUT);
     pinMode(mode_pin, INPUT);
     pinMode(BT::btry_pin, INPUT);
+    pinMode(indicator1, OUTPUT);
+    pinMode(indicator2, OUTPUT);
 
     //SET BACKUP PINS AS INPUTS
     pinMode(LG::LED_PIN_BACKUP, INPUT);
@@ -319,14 +322,18 @@ namespace FN{   //FUNCTIONS=====================================================
     if (digitalRead(mode_pin) == HIGH){
       Serial.println("Mode Button Pressed");
       press_time = millis();
-      while (digitalRead(mode_pin) == HIGH);
+      while (digitalRead(mode_pin) == HIGH){
+        if((((millis()-press_time)/500)%2 == 0) && ((millis()-press_time)>500)) digitalWrite(indicator1, HIGH);
+        else digitalWrite(indicator1, LOW);
+      }
       press_time = millis() - press_time;
+      digitalWrite(indicator1, LOW);
       Serial.println(press_time);
 
       if (press_time<300) return 1;
-      else if(press_time<2000) return 2;
-      else if(press_time<5000) return 3;
-      else if(press_time<8000) return 4;
+      else if(press_time<1000) return 2;
+      else if(press_time<2000) return 3;
+      else if(press_time<3000) return 4;
       else return 0;  
     }
     return 0;
@@ -384,12 +391,6 @@ void setup() {
 }
 
 void loop() {
-  // if((digitalRead(FN::ign_pin)==HIGH)&&(FN::ON==false)) FN::ignite();
-  // else if((digitalRead(FN::ign_pin)!=HIGH)&&(FN::ON==true)) FN::retract();
-  // else if((digitalRead(FN::ign_pin)==HIGH)&&(FN::ON==true)){
-  //   FN::swingState();
-  //   delay(100);
-  // }
 
   if(digitalRead(FN::ign_pin)==HIGH){
     if(FN::ON==false) FN::ignite();
