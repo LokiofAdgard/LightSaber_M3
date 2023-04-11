@@ -84,7 +84,7 @@ namespace SN{   //SOUNDS========================================================
   void init_sounds(){
     softwareSerial.begin(9600);
     if (player.begin(softwareSerial)) {
-    Serial.println("Sound Initialized");
+      Serial.println("Sound Initialized");
 
       // Set volume to maximum (0 to 30).
       //player.volume(15);
@@ -248,7 +248,7 @@ namespace FN{   //FUNCTIONS=====================================================
     Serial.println("Ignite");
     ON = true;
     SN::player.volume(25);
-    SN::player.play(3);
+    SN::player.playFolder(PF::profile + 1, 1);
     //delay(800);
     for(int i = 0;i<LG::NUM_LEDS;i++){
       LG::set_color(LG::color,i);
@@ -256,7 +256,8 @@ namespace FN{   //FUNCTIONS=====================================================
       delay(LG::ign_delay[PF::profile]); 
     }
     delay(800);
-    SN::player.loop(2);
+    SN::player.playFolder(PF::profile + 1, 3);
+    SN::player.enableLoop();
   }
 
   void retract(){
@@ -264,13 +265,14 @@ namespace FN{   //FUNCTIONS=====================================================
     ON = false;
     SN::player.volume(25);
     SN::player.disableLoop();
-    SN::player.play(1);
+    SN::player.playFolder(PF::profile + 1, 2);
     delay(600);
     for(int i = LG::NUM_LEDS;i>=0;i--){
       LG::leds[i] = CRGB(0, 0, 0);
       FastLED.show();
       delay(LG::ret_delay[PF::profile]); 
     }
+    SN::player.pause();
     last_retract = millis(); // for sleep
   }
 
@@ -310,10 +312,11 @@ namespace FN{   //FUNCTIONS=====================================================
       Serial.println("Swing");
       SN::player.disableLoop();
       SN::player.volume(25);
-      SN::player.play(5);
+      SN::player.playFolder(PF::profile + 1, 4);
       
       delay(600);
-      SN::player.loop(2);
+      SN::player.playFolder(PF::profile + 1, 3);
+      SN::player.enableLoop();
     }
     else FN::hit();
   }
@@ -388,6 +391,8 @@ void setup() {
   FN::init_fn();
   LG::color = ST::init_color();
   PF::profile = ST::init_profile();
+
+  // SN::player.playFolder(PF::profile + 1, 2);
 }
 
 void loop() {
