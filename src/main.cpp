@@ -256,15 +256,12 @@ namespace FN{   //FUNCTIONS=====================================================
       FastLED.show();
       delay(LG::ign_delay[PF::profile]); 
     }
-    SN::player.playFolder(PF::profile + 1, 3);
-    SN::player.enableLoop();
   }
 
   void retract(){
     Serial.println("Retract");
     ON = false;
     SN::player.volume(30);
-    SN::player.disableLoop();
     SN::player.playFolder(PF::profile + 1, 2);
     //delay(600);
     for(int i = LG::NUM_LEDS;i>=0;i--){
@@ -285,19 +282,22 @@ namespace FN{   //FUNCTIONS=====================================================
 
   void hit(){
     Serial.println("hit");
+    SN::player.volume(30);
+    SN::player.playFolder(PF::profile + 1, 8);
     for(int i = 40;i<LG::NUM_LEDS;i++){
       LG::leds[i] = CRGB(255, 255, 255);
       FastLED.show();
       delay(10); 
     }
 
-    delay(500);
+    while(SN::player.readState()==-1);
     int r = 0;
     while((r<hit_leave) && (digitalRead(ign_pin)==HIGH)){
       r = GY::gyroRead();
-      Serial.println("hit");
-      delay(500);// consider removing
+      //Serial.println(SN::player.readState());
+      if(SN::player.readState()==-1) SN::player.playFolder(PF::profile + 1, 8);
     }
+    SN::player.playFolder(PF::profile + 1, 4);
     restore();
   }
 
@@ -307,16 +307,14 @@ namespace FN{   //FUNCTIONS=====================================================
       //set propotional vol (<30)
       //Serial.println("hum");
       SN::player.volume((10*v/GY::low_s)+20);
+      if(SN::player.readState() == -1) {
+        SN::player.playFolder(PF::profile + 1, 3);
+      }
     }
     else if(v<(GY::low_s + GY::med_s)){
       Serial.println("Swing");
-      SN::player.disableLoop();
       SN::player.volume(25);
       SN::player.playFolder(PF::profile + 1, 4);
-      
-      delay(600);
-      SN::player.playFolder(PF::profile + 1, 3);
-      SN::player.enableLoop();
     }
     else FN::hit();
   }
@@ -351,10 +349,10 @@ namespace FN{   //FUNCTIONS=====================================================
   }
 
   void battery_check(bool full){
-    SN::player.volume(30);
     v = BT::get_battery();
     if (v <= BT::btry_cutoff){
       Serial.println("Battery Too Low");
+      SN::player.volume(30);
       SN::player.playFolder(BT::voice_folder, 14);
       delay(2500);
       if(FN::ON) FN::retract();
@@ -362,6 +360,7 @@ namespace FN{   //FUNCTIONS=====================================================
     }
     if(!full) return;
 
+    SN::player.volume(30);
     if(v <= BT::btry_low){ Serial.println("Battery : LOW"); SN::player.playFolder(BT::voice_folder, 10);}
     else if(v <= BT::btry_medium){ Serial.println("Battery : MEDIUM"); SN::player.playFolder(BT::voice_folder, 11);}
     else if(v <= BT::btry_good){ Serial.println("Battery : GOOD"); SN::player.playFolder(BT::voice_folder, 12);}
@@ -373,6 +372,7 @@ namespace FN{   //FUNCTIONS=====================================================
   void sleeper(unsigned char m){ //minutes
     if(millis()>(last_retract + 60000*m)){
       Serial.println("Going to Sleep");
+      SN::player.sleep();
       while (1) delay(1000000);      
     }
   }
