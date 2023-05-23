@@ -31,8 +31,8 @@ namespace LG{   // LIGHTS=======================================================
   const char NUM_LEDS = 60;
   unsigned char color = 0;
   char nColors = 3;
-  char ign_delay[] = {23, 7, 50};
-  char ret_delay[] = {20, 5, 50};
+  char ign_delay[] = {23, 7, 25};
+  char ret_delay[] = {20, 5, 20};
 
   CRGB leds[NUM_LEDS];
 
@@ -74,6 +74,8 @@ namespace LG{   // LIGHTS=======================================================
 
 
 namespace SN{   //SOUNDS=====================================================================================================
+  const char errorLight = 13;
+  const char voice_folder = 99;
   static const uint8_t PIN_MP3_TX = 2; // Connects to module's RX 
   static const uint8_t PIN_MP3_RX = 3; // Connects to module's TX 
 
@@ -93,6 +95,10 @@ namespace SN{   //SOUNDS========================================================
       
     } else {
       Serial.println("Sound init Failed------");
+      while (1) {
+        digitalWrite(13, HIGH); delay(500);
+        digitalWrite(13, LOW); delay(500);
+      }
     }
   }
 }
@@ -115,9 +121,8 @@ namespace GY{   //GYROSCPOE=====================================================
     while (!Serial) delay(10); // will pause Zero, Leonardo, etc until serial console opens
     if (!mpu.begin()) {
       Serial.println("Gyro init Failed------");
-      while (1) {
-        delay(10);
-      }
+      SN::player.playFolder(SN::voice_folder, 51);
+      while (1) delay(10000);
     }
     Serial.println("Gyro Initialized");
     mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
@@ -152,6 +157,7 @@ namespace ST{   //STORAGE=======================================================
       return (temp);
     } else {
       Serial.println("Color init Failed------");
+      SN::player.playFolder(SN::voice_folder, 52);
       return 0;
     }
   }
@@ -162,6 +168,7 @@ namespace ST{   //STORAGE=======================================================
       return (temp);
     } else {
       Serial.println("Profile init Failed------");
+      SN::player.playFolder(SN::voice_folder, 53);
       return 0;
     }
   }
@@ -185,7 +192,6 @@ namespace ST{   //STORAGE=======================================================
 namespace BT{   //BATTERY=====================================================================================================
   const char btry_pin = A0;
   const char battery_pin_backup = A1;
-  const char voice_folder = 99;
   const char btry_cutoff = 32;   //3.2 V
   const char btry_low = 34;      //3.4 V
   const char btry_medium = 37;   //3.7 V
@@ -202,7 +208,7 @@ namespace BT{   //BATTERY=======================================================
     temp = get_battery();
     if (temp <= btry_cutoff){
       Serial.println("Battery Too Low");
-      SN::player.playFolder(BT::voice_folder, 14);
+      SN::player.playFolder(SN::voice_folder, 14);
       while (1) delay(10000);      
     }
     else if(temp <= btry_low) Serial.println("Battery : LOW");
@@ -353,7 +359,7 @@ namespace FN{   //FUNCTIONS=====================================================
     if (v <= BT::btry_cutoff){
       Serial.println("Battery Too Low");
       SN::player.volume(30);
-      SN::player.playFolder(BT::voice_folder, 14);
+      SN::player.playFolder(SN::voice_folder, 14);
       delay(2500);
       if(FN::ON) FN::retract();
       while (1) delay(10000);      
@@ -361,10 +367,10 @@ namespace FN{   //FUNCTIONS=====================================================
     if(!full) return;
 
     SN::player.volume(30);
-    if(v <= BT::btry_low){ Serial.println("Battery : LOW"); SN::player.playFolder(BT::voice_folder, 10);}
-    else if(v <= BT::btry_medium){ Serial.println("Battery : MEDIUM"); SN::player.playFolder(BT::voice_folder, 11);}
-    else if(v <= BT::btry_good){ Serial.println("Battery : GOOD"); SN::player.playFolder(BT::voice_folder, 12);}
-    else{ Serial.println("Battery : FULL"); SN::player.playFolder(BT::voice_folder, 13);}
+    if(v <= BT::btry_low){ Serial.println("Battery : LOW"); SN::player.playFolder(SN::voice_folder, 10);}
+    else if(v <= BT::btry_medium){ Serial.println("Battery : MEDIUM"); SN::player.playFolder(SN::voice_folder, 11);}
+    else if(v <= BT::btry_good){ Serial.println("Battery : GOOD"); SN::player.playFolder(SN::voice_folder, 12);}
+    else{ Serial.println("Battery : FULL"); SN::player.playFolder(SN::voice_folder, 13);}
     delay(1000);
     SN::player.pause();
   }
@@ -388,11 +394,11 @@ void setup() {
   Serial.begin(9600);
   Serial.println("\n=================================================");
   
+  FN::init_fn();
   SN::init_sounds();
   BT::init_battery();
   LG::init_lights();
   GY::init_gyro();
-  FN::init_fn();
   LG::color = ST::init_color();
   PF::profile = ST::init_profile();
 }
