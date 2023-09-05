@@ -95,10 +95,11 @@ namespace SN{   //SOUNDS========================================================
       
     } else {
       Serial.println("Sound init Failed------");
-      while (1) {
+      while (!player.begin(softwareSerial)) {
         digitalWrite(13, HIGH); delay(500);
         digitalWrite(13, LOW); delay(500);
       }
+      Serial.println("Sound Initialized");
     }
   }
 }
@@ -135,7 +136,7 @@ namespace GY{   //GYROSCPOE=====================================================
     sensors_event_t a, g, temp;
     mpu.getEvent(&a, &g, &temp);
 
-    float v = gyro_sens*sqrt(sq(g.gyro.x) + sq(g.gyro.y) + sq(g.gyro.z));
+    float v = gyro_sens*sqrt(sq(g.gyro.y) + sq(g.gyro.z));  //removed x component
     return(v);
   }
 }
@@ -290,7 +291,7 @@ namespace FN{   //FUNCTIONS=====================================================
     Serial.println("hit");
     SN::player.volume(30);
     SN::player.playFolder(PF::profile + 1, 8);
-    for(int i = 40;i<LG::NUM_LEDS;i++){
+    for(int i = 40;i<LG::NUM_LEDS;i+=3){
       LG::leds[i] = CRGB(255, 255, 255);
       FastLED.show();
       delay(10); 
@@ -321,6 +322,7 @@ namespace FN{   //FUNCTIONS=====================================================
       Serial.println("Swing");
       SN::player.volume(25);
       SN::player.playFolder(PF::profile + 1, 4);
+      while((GY::gyroRead()>GY::low_s)&&(GY::gyroRead()<(GY::low_s + GY::med_s)));
     }
     else FN::hit();
   }
